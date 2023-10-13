@@ -2341,33 +2341,31 @@ SESSION *NewServerSessionEx(CEDAR *cedar, CONNECTION *c, HUB *h, char *username,
 		{
 			Copy(s->IpcMacAddress, ipc_mac_address, 6);
 		}
-		else
+		AcLock(h);
 		{
-			char tmp[MAX_SIZE];
-			char machine[MAX_SIZE];
-			UCHAR hash[SHA1_SIZE];
+			USER *u = AcGetUser(h, username);
+			if (u != NULL && wcslen(u->Note) == 17)      //check User Note
+			{	
+				UCHAR strNote[19];
+				wcstombs(strNote, u->Note, 19);
+				sscanf( strNote, "%x-%x-%x-%x-%x-%x",&s->IpcMacAddress[0], &s->IpcMacAddress[1], &s->IpcMacAddress[2],&s->IpcMacAddress[3], &s->IpcMacAddress[4], &s->IpcMacAddress[5] ) ;				
+			}else{
 
-			GetMachineName(machine, sizeof(machine));
+				Hash(hash, tmp, StrLen(tmp), true);
 
-			Format(tmp, sizeof(tmp), "%s@%s@%u", machine, h->Name, s->UniqueId);
-
-			StrUpper(tmp);
-			Trim(tmp);
-
-			Hash(hash, tmp, StrLen(tmp), true);
-
-			s->IpcMacAddress[0] = 0xCA;
-			s->IpcMacAddress[1] = hash[1];
-			s->IpcMacAddress[2] = hash[2];
-			s->IpcMacAddress[3] = hash[3];
-			s->IpcMacAddress[4] = hash[4];
-			s->IpcMacAddress[5] = hash[5];
-
+				s->IpcMacAddress[0] = 0xCA;
+				s->IpcMacAddress[1] = hash[1];
+				s->IpcMacAddress[2] = hash[2];
+				s->IpcMacAddress[3] = hash[3];
+				s->IpcMacAddress[4] = hash[4];
+				s->IpcMacAddress[5] = hash[5];
+			}
+			ReleaseUser(u);	
 			MacToStr(tmp, sizeof(tmp), s->IpcMacAddress);
 			Debug("MAC Address for IPC: %s\n", tmp);
 		}
+		AcUnlock(h);
 	}
-
 
 	return s;
 }
@@ -2380,10 +2378,12 @@ bool IsIpcMacAddress(UCHAR *mac)
 	{
 		return false;
 	}
-
-	if (mac[0] == 0xCA)
-	{
+	//if (mac[0] == 0xCA)
+	//{
 		return true;
+	//}
+	
+	//return false;
 	}
 
 	return false;
